@@ -1,7 +1,7 @@
 {
   "name": "codevision",
   "displayName": "CodeVision",
-  "description": "Extract text from images using OCR and generate wireframes from screenshots. Works in VS Code, Cursor, and compatible IDEs.",
+  "description": "Extract text from images with OCR and build structured context files for AI agents. Works in VS Code, Cursor, and compatible IDEs.",
   "version": "0.1.0",
   "publisher": "codevision",
   "engines": {
@@ -15,16 +15,17 @@
     "ocr",
     "tesseract",
     "image",
-    "wireframe",
     "screenshot",
     "ai",
-    "agent"
+    "agent",
+    "context",
+    "prompt"
   ],
   "repository": {
     "type": "git",
     "url": "https://github.com/naveedulislam/codevision"
   },
-  "activationEvents": [],
+  "activationEvents": ["onStartupFinished"],
   "main": "./dist/extension.js",
   "contributes": {
     "commands": [
@@ -37,28 +38,24 @@
         "title": "CodeVision: Extract Text from Clipboard Image"
       },
       {
-        "command": "codevision.generateWireframe",
-        "title": "CodeVision: Generate Wireframe from Image File"
-      },
-      {
-        "command": "codevision.analyzeImage",
-        "title": "CodeVision: Analyze Image (Text + Wireframe)"
-      },
-      {
-        "command": "codevision.analyzeActiveImage",
-        "title": "CodeVision: Analyze Active Image File"
-      },
-      {
         "command": "codevision.extractTextFromUri",
         "title": "Extract Text with CodeVision"
       },
       {
-        "command": "codevision.generateWireframeFromUri",
-        "title": "Generate Wireframe with CodeVision"
+        "command": "codevision.captureScreenshot",
+        "title": "CodeVision: Capture Screenshot & Extract Text"
       },
       {
-        "command": "codevision.captureScreenshot",
-        "title": "CodeVision: Capture Screenshot & Analyze"
+        "command": "codevision.newAgentRequest",
+        "title": "CodeVision: New Agent Request"
+      },
+      {
+        "command": "codevision.insertWorkspaceContext",
+        "title": "CodeVision: Insert Workspace Context"
+      },
+      {
+        "command": "codevision.insertErrors",
+        "title": "CodeVision: Insert Errors & Diagnostics"
       }
     ],
     "keybindings": [
@@ -74,11 +71,6 @@
           "command": "codevision.extractTextFromUri",
           "when": "resourceExtname =~ /^\\.(png|jpg|jpeg|bmp|tiff|gif|webp)$/i",
           "group": "codevision@1"
-        },
-        {
-          "command": "codevision.generateWireframeFromUri",
-          "when": "resourceExtname =~ /^\\.(png|jpg|jpeg|bmp|tiff|gif|webp)$/i",
-          "group": "codevision@2"
         }
       ]
     },
@@ -94,16 +86,6 @@
           "type": "string",
           "default": "",
           "description": "Path to local Tesseract language data directory (for offline/air-gapped use). Leave empty to download automatically."
-        },
-        "codevision.wireframeFormat": {
-          "type": "string",
-          "enum": [
-            "svg",
-            "ascii",
-            "html"
-          ],
-          "default": "svg",
-          "description": "Format for wireframe output (svg = scalable graphic, ascii = text-only, html = interactive)."
         },
         "codevision.openResultInEditor": {
           "type": "boolean",

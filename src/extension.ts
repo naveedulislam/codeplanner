@@ -11,13 +11,15 @@ import { disposeWorker } from './ocrEngine';
 import {
   cmdExtractText,
   cmdExtractTextFromClipboard,
-  cmdGenerateWireframe,
-  cmdAnalyzeImage,
-  cmdAnalyzeActiveImage,
   cmdCaptureScreenshot
 } from './commands';
+import {
+  FileDropEditProvider,
+  cmdNewAgentRequest,
+  cmdInsertWorkspaceContext,
+  cmdInsertErrors
+} from './agentRequestBuilder';
 import { recognizeImage } from './ocrEngine';
-import { generateWireframe } from './wireframeGenerator';
 import type { OcrOptions } from './types';
 
 // ---------------------------------------------------------------------------
@@ -36,29 +38,47 @@ export function activate(context: vscode.ExtensionContext): void {
       cmdExtractTextFromClipboard(context)
     ),
 
-    vscode.commands.registerCommand('codevision.generateWireframe', (uri?: vscode.Uri) =>
-      cmdGenerateWireframe(context, uri)
-    ),
-
-    vscode.commands.registerCommand('codevision.analyzeImage', (uri?: vscode.Uri) =>
-      cmdAnalyzeImage(context, uri)
-    ),
-
-    vscode.commands.registerCommand('codevision.analyzeActiveImage', () =>
-      cmdAnalyzeActiveImage(context)
-    ),
-
-    // Context-menu wrappers (pass the URI from the explorer)
+    // Context-menu wrapper (pass the URI from the explorer)
     vscode.commands.registerCommand('codevision.extractTextFromUri', (uri: vscode.Uri) =>
       cmdExtractText(context, uri)
     ),
 
-    vscode.commands.registerCommand('codevision.generateWireframeFromUri', (uri: vscode.Uri) =>
-      cmdGenerateWireframe(context, uri)
-    ),
-
     vscode.commands.registerCommand('codevision.captureScreenshot', () =>
       cmdCaptureScreenshot(context)
+    ),
+
+    // Agent Request Builder commands
+    vscode.commands.registerCommand('codevision.newAgentRequest', () =>
+      cmdNewAgentRequest()
+    ),
+
+    vscode.commands.registerCommand('codevision.insertWorkspaceContext', () =>
+      cmdInsertWorkspaceContext()
+    ),
+
+    vscode.commands.registerCommand('codevision.insertErrors', () =>
+      cmdInsertErrors()
+    ),
+
+    // Drop-to-insert: drag files/folders from Explorer → inserts relative path.
+    // No dropMimeTypes filter: let VS Code pass all DataTransfer data so
+    // 'text/plain' (which carries the absolute path) is always available.
+    vscode.languages.registerDocumentDropEditProvider(
+      [
+        { language: 'markdown',   scheme: 'file' },
+        { language: 'markdown',   scheme: 'untitled' },
+        { language: 'plaintext',  scheme: 'file' },
+        { language: 'plaintext',  scheme: 'untitled' },
+        { language: 'javascript', scheme: 'file' },
+        { language: 'typescript', scheme: 'file' },
+        { language: 'html',       scheme: 'file' },
+        { language: 'css',        scheme: 'file' },
+        { language: 'json',       scheme: 'file' },
+        { language: 'yaml',       scheme: 'file' },
+        { language: 'python',     scheme: 'file' },
+        { language: 'swift',      scheme: 'file' },
+      ],
+      new FileDropEditProvider()
     )
   );
 
@@ -158,82 +178,5 @@ function registerLmTools(context: vscode.ExtensionContext): void {
     }
   });
 
-  // ── Tool 2: generate_wireframe ──────────────────────────────────────────
-  const wireframeTool = lm.registerTool('codevision_generate_wireframe', {
-    description:
-      'Analyze an image using OCR and generate a structured wireframe that describes the spatial ' +
-      'layout as labelled blocks (header, nav, paragraph, sidebar, button, footer, heading). ' +
-      'Returns extracted text, block metadata (type, bounding box, text), and an SVG wireframe. ' +
-      'Ideal for converting UI screenshots into structured context for code generation.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        imagePath: {
-          type: 'string',
-          description: 'Absolute file path to the image to analyze.'
-        },
-        lang: {
-          type: 'string',
-          description: 'Tesseract language code(s). Defaults to "eng".'
-        },
-        format: {
-          type: 'string',
-          enum: ['svg', 'ascii', 'html'],
-          description:
-            'Wireframe output format. "svg" = scalable graphic (default), ' +
-            '"ascii" = plain-text grid, "html" = self-contained HTML page.'
-        }
-      },
-      required: ['imagePath']
-    },
-    invoke: async (opts, _token) => {
-      const { imagePath, lang, format } = opts.input as {
-        imagePath: string;
-        lang?: string;
-        format?: 'svg' | 'ascii' | 'html';
-      };
-
-      const cfg = vscode.workspace.getConfiguration('codevision');
-      const ocrOpts: OcrOptions = {
-        language: lang ?? cfg.get<string>('tesseractLanguage', 'eng'),
-        tessDataPath: cfg.get<string>('tessDataPath', '') || undefined
-      };
-
-      const ocr = await recognizeImage(imagePath, ocrOpts);
-      const wf  = generateWireframe(ocr);
-
-      const chosenFormat = format ?? 'svg';
-      const wireframeContent =
-        chosenFormat === 'ascii' ? wf.ascii :
-        chosenFormat === 'html'  ? wf.html  : wf.svg;
-
-      const blockSummary = wf.blocks.map(b => ({
-        type:      b.type,
-        text:      b.text.slice(0, 100),
-        bbox:      b.bbox,
-        wordCount: b.wordCount
-      }));
-
-      const output = {
-        extractedText: ocr.text,
-        confidence:    ocr.confidence,
-        imageWidth:    ocr.imageWidth,
-        imageHeight:   ocr.imageHeight,
-        blocksDetected: wf.blocks.length,
-        blocks:        blockSummary,
-        wireframe:     wireframeContent
-      };
-
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(output, null, 2)
-          }
-        ]
-      };
-    }
-  });
-
-  context.subscriptions.push(extractTool, wireframeTool);
+    context.subscriptions.push(extractTool);
 }

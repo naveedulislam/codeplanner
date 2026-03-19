@@ -4,3 +4,6 @@ out/
 *.vsix
 *.profraw
 .vscode-test/
+*.traineddata
+debug_tsv.js
+.webcure
