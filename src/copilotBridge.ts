@@ -91,27 +91,25 @@ async function openStagingFolderInFinder(filePaths: string[], prevDirs: string[]
   // Close any Finder windows that are showing a previous staging folder,
   // then delete those folders.  This prevents stale windows accumulating
   // every time the user clicks Send again after adding more files.
-  if (prevDirs.length > 0) {
-    const closeChecks = prevDirs
-      .map(d => `(POSIX file ${JSON.stringify(d)} as alias)`)
-      .join(', ');
-    const closeScript = [
-      'tell application "Finder"',
-      '  try',
-      `    set prevFolders to {${closeChecks}}`,
-      '    repeat with prevFolder in prevFolders',
-      '      close (every window whose target is prevFolder)',
-      '    end repeat',
-      '  end try',
-      'end tell',
-    ].join('\n');
-    await new Promise<void>((resolve) => {
-      // Best-effort: resolve even on error (folder may already be gone).
-      cp.execFile('osascript', ['-e', closeScript], { timeout: 6_000 }, () => resolve());
-    });
-    for (const dir of prevDirs) {
-      try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* ignore */ }
-    }
+  //
+  // Match by window name containing "codeplanner-upload" — this is more
+  // reliable than alias matching, which can fail when macOS resolves
+  // /var/folders symlinks differently than the path we stored.
+  const closeScript = [
+    'tell application "Finder"',
+    '  try',
+    '    set winsToClose to every window whose name contains "codeplanner-upload"',
+    '    repeat with w in winsToClose',
+    '      close w',
+    '    end repeat',
+    '  end try',
+    'end tell',
+  ].join('\n');
+  await new Promise<void>((resolve) => {
+    cp.execFile('osascript', ['-e', closeScript], { timeout: 6_000 }, () => resolve());
+  });
+  for (const dir of prevDirs) {
+    try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* ignore */ }
   }
 
   // Create a fresh temp directory for this batch.
@@ -213,12 +211,8 @@ class CopilotFileItem extends vscode.TreeItem {
     this.tooltip     = filePath;
     this.iconPath    = new vscode.ThemeIcon('file');
     this.contextValue = 'copilotFileItem';
-    // Clicking the item re-copies it to the clipboard.
-    this.command = {
-      command:   'codeplanner.copilotRecopyFile',
-      title:     'Re-copy to Clipboard',
-      arguments: [this],
-    };
+    // Re-copy is triggered via the inline button only (view/item/context),
+    // not by clicking the item label — that avoids accidental Finder popups.
   }
 }
 
@@ -257,6 +251,8 @@ export class CopilotFilesProvider
 {
   /** Staging directories created for macOS Finder uploads; cleaned up on clear/dispose. */
   private _stagingDirs: string[] = [];
+  /** Whether the M365 Copilot Simple Browser tab has already been opened this session. */
+  private _browserOpened = false;
   // ── TreeDragAndDropController ──────────────────────────────────────────────
 
   /** Mime types this controller accepts when items are dropped onto the tree. */
@@ -366,11 +362,39 @@ export class CopilotFilesProvider
   }
 
   /**
-   * Re-copy a single staged file to the clipboard (for item-click in tree).
-   * Does NOT affect the rest of the staged list.
+   * Re-copy a single staged file to the clipboard (inline button in tree).
+   * Only places the file on the clipboard — does NOT open Finder or the browser.
    */
   async copyAndNotify(filePath: string): Promise<void> {
-    await this._copyAndNotify([filePath]);
+    const platform = os.platform();
+    const basename = path.basename(filePath);
+
+    try {
+      if (platform === 'darwin' && isImageFile(filePath)) {
+        // Copy image pixel data so ⌘V works in the browser.
+        await copyImageDataToClipboard(filePath);
+      } else if (platform === 'darwin') {
+        // Copy the file reference to the clipboard via AppleScript.
+        const script =
+          `set the clipboard to (POSIX file ${JSON.stringify(filePath)})`;
+        await new Promise<void>((resolve, reject) => {
+          cp.execFile('osascript', ['-e', script], { timeout: 8_000 }, (err) => {
+            if (err) { reject(err); } else { resolve(); }
+          });
+        });
+      } else {
+        await copyFilesToClipboard([filePath]);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      vscode.window.showErrorMessage(`CodePlanner: Could not copy "${basename}" — ${msg}`);
+      return;
+    }
+
+    const pasteKey = platform === 'darwin' ? '⌘V' : 'Ctrl+V';
+    vscode.window.showInformationMessage(
+      `"${basename}" copied to clipboard — press ${pasteKey} in the browser to attach.`,
+    );
   }
 
   // ── Private helpers ────────────────────────────────────────────────────────
@@ -441,11 +465,14 @@ export class CopilotFilesProvider
         return;
       }
 
-      // Open M365 Copilot in Simple Browser beside the current editor so the
-      // user can drag straight from Finder to the browser in one motion.
-      await vscode.commands.executeCommand(
-        'simpleBrowser.show', 'https://m365.cloud.microsoft/chat/',
-      );
+      // Open M365 Copilot in Simple Browser only the first time — subsequent
+      // clicks reuse the existing tab so we don't pile up duplicate tabs.
+      if (!this._browserOpened) {
+        await vscode.commands.executeCommand(
+          'simpleBrowser.show', 'https://m365.cloud.microsoft/chat/',
+        );
+        this._browserOpened = true;
+      }
 
       const countNote = filePaths.length === 1
         ? `"${path.basename(filePaths[0])}" is`

@@ -6,20 +6,20 @@ A VS Code / Cursor extension (and standalone CLI) for **OCR text extraction** an
 
 ## Features
 
-| Feature                   | Description                                                                                                                                           |
-| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **OCR text extraction**   | Extract text from PNG, JPEG, BMP, TIFF, GIF, WEBP images using [Tesseract.js](https://github.com/naptha/tesseract.js) — no native binaries required   |
-| **Multi-language OCR**    | Supports 100+ languages: `eng`, `ara`, `chi_sim`, `fra`, `deu`, `eng+ara`, etc.                                                                       |
-| **Agent Request Builder** | Create structured markdown context files with named sections (Task, Files & References, Workspace Context, Errors & Diagnostics, Constraints & Notes) |
-| **Drop-to-insert**        | Drag files or folders from the Explorer into any open document — the relative path is inserted at the cursor automatically                            |
-| **Workspace context**     | One command inserts your project folder tree and `git status` into the active document                                                                |
-| **Error context**         | One command inserts all current VS Code diagnostics (errors and warnings) into the active document                                                    |
-| **Screenshot capture**    | `Ctrl+Shift+Cmd+4` (macOS) / `Ctrl+Shift+Alt+4` (Windows/Linux) triggers OS screenshot tool → OCR result in editor                                    |
-| **Clipboard extraction**  | Extract text directly from an image copied to clipboard (no save needed)                                                                              |
-| **AI agent LM tool**      | Registered as a VS Code Language Model Tool — Copilot and other agents can call `codeplanner_extract_text` directly                                    |
-| **CLI tool**              | `node cli/codeplanner.js ocr` works in any terminal, including the integrated terminal                                                                 |
-| **Offline / air-gapped**  | Point `codeplanner.tessDataPath` at a local tessdata directory to avoid downloading language models                                                    |
-| **M365 Copilot Upload**   | Stage files in the Explorer sidebar, then send them all to M365 Copilot Chat in a single drag from a pre-selected Finder window                        |
+| Feature                   | Description                                                                                                                                                                          |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **OCR text extraction**   | Extract text from PNG, JPEG, BMP, TIFF, GIF, WEBP images using [Tesseract.js](https://github.com/naptha/tesseract.js) — no native binaries required                                  |
+| **Multi-language OCR**    | Supports 100+ languages: `eng`, `ara`, `chi_sim`, `fra`, `deu`, `eng+ara`, etc.                                                                                                      |
+| **Agent Request Builder** | Create structured markdown context files with named sections (Task, Files & References, Workspace Context, Errors & Diagnostics, Instructions, Constraints & Notes, Expected Output) |
+| **Drop-to-insert**        | Drag files or folders from the Explorer into any open document — the relative path is inserted at the cursor automatically                                                           |
+| **Workspace context**     | One command inserts your project folder tree and `git status` into the active document                                                                                               |
+| **Error context**         | One command inserts all current VS Code diagnostics (errors and warnings) into the active document                                                                                   |
+| **Screenshot capture**    | `Ctrl+Shift+Cmd+4` (macOS) / `Ctrl+Shift+Alt+4` (Windows/Linux) triggers OS screenshot tool → OCR result in editor                                                                   |
+| **Clipboard extraction**  | Extract text directly from an image copied to clipboard (no save needed)                                                                                                             |
+| **AI agent LM tool**      | Registered as a VS Code Language Model Tool — Copilot and other agents can call `codeplanner_extract_text` directly                                                                  |
+| **CLI tool**              | `node cli/codeplanner.js ocr` works in any terminal, including the integrated terminal                                                                                               |
+| **Offline / air-gapped**  | Point `codeplanner.tessDataPath` at a local tessdata directory to avoid downloading language models                                                                                  |
+| **M365 Copilot Upload**   | Stage files in the Explorer sidebar, then send them all to M365 Copilot Chat in a single drag from a pre-selected Finder window                                                      |
 
 ---
 
@@ -77,9 +77,21 @@ Opens a new untitled Markdown document with a structured template:
 
 ---
 
+## Instructions
+
+<!-- Step-by-step instructions or acceptance criteria the agent should follow. -->
+
+---
+
 ## Constraints & Notes
 
 <!-- Coding style, patterns to follow, anything the agent should know. -->
+
+---
+
+## Expected Output
+
+<!-- Describe the deliverable: a diff, a working feature, a document, tests, etc. -->
 ```
 
 Cursor lands in the **Task** section so you can start typing immediately.
@@ -90,8 +102,8 @@ Cursor lands in the **Task** section so you can start typing immediately.
 
 ### OCR
 
-| Command                                         | Description                                            |
-| ----------------------------------------------- | ------------------------------------------------------ |
+| Command                                          | Description                                            |
+| ------------------------------------------------ | ------------------------------------------------------ |
 | `CodePlanner: Extract Text from Image File`      | Pick an image → extracted text in editor               |
 | `CodePlanner: Extract Text from Clipboard Image` | Read image from OS clipboard → OCR it (no save needed) |
 | `CodePlanner: Capture Screenshot & Extract Text` | OS screenshot picker → OCR result in editor            |
@@ -100,8 +112,8 @@ Right-click an image in the **Explorer** panel for the context-menu shortcut.
 
 ### Agent Request Builder
 
-| Command                                   | Description                                                     |
-| ----------------------------------------- | --------------------------------------------------------------- |
+| Command                                    | Description                                                     |
+| ------------------------------------------ | --------------------------------------------------------------- |
 | `CodePlanner: New Agent Request`           | Create a new structured agent request template                  |
 | `CodePlanner: Insert Workspace Context`    | Inserts project folder tree + `git branch` + `git status`       |
 | `CodePlanner: Insert Errors & Diagnostics` | Inserts all VS Code errors and warnings from the Problems panel |
@@ -118,12 +130,12 @@ The **Upload Files** panel in the Explorer sidebar lets you stage any number of 
 4. **One drag** from Finder to the browser attaches everything — no per-file dragging
 5. Click the **trash icon** to clear the list
 
-| Command                               | Description                                                      |
-| ------------------------------------- | ---------------------------------------------------------------- |
-| `CodePlanner: Send to Upload Files`   | Stage the right-clicked / active file in the Upload Files panel  |
-| `CodePlanner: Open M365 Copilot Chat` | Open M365 Copilot in the built-in Simple Browser                 |
+| Command                               | Description                                                     |
+| ------------------------------------- | --------------------------------------------------------------- |
+| `CodePlanner: Send to Upload Files`   | Stage the right-clicked / active file in the Upload Files panel |
+| `CodePlanner: Open M365 Copilot Chat` | Open M365 Copilot in the built-in Simple Browser                |
 | `CodePlanner: Copy All to Clipboard`  | Stage → open Finder (all selected) + open M365 Copilot browser  |
-| `CodePlanner: Clear Staged Files`     | Remove all files from the Upload Files panel                     |
+| `CodePlanner: Clear Staged Files`     | Remove all files from the Upload Files panel                    |
 
 ---
 
@@ -269,6 +281,7 @@ Track development progress and session notes in the [`status/`](./status/) folde
 | [project_status_01.md](./status/project_status_01.md) | Session 01 — initial build: OCR engine, wireframe generator, CLI                         |
 | [project_status_02.md](./status/project_status_02.md) | Session 02 — replaced wireframe with Agent Request Builder; drag-and-drop path insertion |
 | [project_status_03.md](./status/project_status_03.md) | Session 03 — renamed codevision → codeplanner; M365 Copilot Upload Bridge                |
+| [project_status_04.md](./status/project_status_04.md) | Session 04 — Upload Files UX fixes; Agent Request template update                        |
 
 ---
 
