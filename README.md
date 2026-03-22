@@ -20,6 +20,7 @@ A VS Code / Cursor extension (and standalone CLI) for **OCR text extraction** an
 | **CLI tool**              | `node cli/codeplanner.js ocr` works in any terminal, including the integrated terminal                                                                                               |
 | **Offline / air-gapped**  | Point `codeplanner.tessDataPath` at a local tessdata directory to avoid downloading language models                                                                                  |
 | **M365 Copilot Upload**   | Stage files in the Explorer sidebar, then send them all to M365 Copilot Chat in a single drag from a pre-selected Finder window                                                      |
+| **Auto-Attach (macOS)**   | Automatically attach staged files to M365 Copilot in Chrome, Edge, or Safari via AppleScript + JS injection — no manual dragging required                                            |
 
 ---
 
@@ -125,17 +126,23 @@ The **Upload Files** panel in the Explorer sidebar lets you stage any number of 
 **Workflow:**
 
 1. Drag files from the Explorer into the **Upload Files** panel — or right-click any file and choose **Send to Upload Files**
-2. Click the **send icon** (↗) in the panel title bar
-3. A Finder window opens with all files pre-selected, and M365 Copilot opens beside it
-4. **One drag** from Finder to the browser attaches everything — no per-file dragging
+2. Click the **cloud-upload icon** (☁↑) in the panel title bar to **Auto-Attach** (macOS only — requires M365 Copilot open in Chrome, Edge, or Safari)
+3. Files are uploaded automatically via browser automation — no manual dragging
+4. Falls back to the **Finder flow** if Auto-Attach fails: a Finder window opens with all files pre-selected for one drag
 5. Click the **trash icon** to clear the list
 
-| Command                               | Description                                                     |
-| ------------------------------------- | --------------------------------------------------------------- |
-| `CodePlanner: Send to Upload Files`   | Stage the right-clicked / active file in the Upload Files panel |
-| `CodePlanner: Open M365 Copilot Chat` | Open M365 Copilot in the built-in Simple Browser                |
-| `CodePlanner: Copy All to Clipboard`  | Stage → open Finder (all selected) + open M365 Copilot browser  |
-| `CodePlanner: Clear Staged Files`     | Remove all files from the Upload Files panel                    |
+> **Auto-Attach requirements (macOS):**
+>
+> - Grant VS Code / Cursor **Automation** permission for the target browser (System Settings → Privacy & Security → Automation)
+> - For Chrome: enable **View → Developer → Allow JavaScript from Apple Events**
+
+| Command                                    | Description                                                              |
+| ------------------------------------------ | ------------------------------------------------------------------------ |
+| `CodePlanner: Send to Upload Files`        | Stage the right-clicked / active file in the Upload Files panel          |
+| `CodePlanner: Open M365 Copilot Chat`      | Open M365 Copilot in the built-in Simple Browser                         |
+| `CodePlanner: Copy All to Clipboard`       | Stage → open Finder (all selected) + open M365 Copilot browser           |
+| `CodePlanner: Auto-Attach to M365 Copilot` | Automatically upload staged files to Copilot in Chrome/Edge/Safari (Mac) |
+| `CodePlanner: Clear Staged Files`          | Remove all files from the Upload Files panel                             |
 
 ---
 
@@ -160,11 +167,13 @@ Open **Settings → Extensions → CodePlanner** or edit `settings.json`:
 }
 ```
 
-| Setting              | Default | Description                                                                                                  |
-| -------------------- | ------- | ------------------------------------------------------------------------------------------------------------ |
-| `tesseractLanguage`  | `"eng"` | Language(s) for OCR. Use `+` to combine, e.g. `"eng+ara"`                                                    |
-| `tessDataPath`       | `""`    | Local tessdata directory (offline mode). Download from [tessdata](https://github.com/tesseract-ocr/tessdata) |
-| `openResultInEditor` | `true`  | Auto-open OCR results in a new editor tab                                                                    |
+| Setting                | Default                                   | Description                                                                                                  |
+| ---------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `tesseractLanguage`    | `"eng"`                                   | Language(s) for OCR. Use `+` to combine, e.g. `"eng+ara"`                                                    |
+| `tessDataPath`         | `""`                                      | Local tessdata directory (offline mode). Download from [tessdata](https://github.com/tesseract-ocr/tessdata) |
+| `openResultInEditor`   | `true`                                    | Auto-open OCR results in a new editor tab                                                                    |
+| `copilotBrowser`       | `"auto"`                                  | Browser for Auto-Attach: `auto`, `Google Chrome`, `Microsoft Edge`, `Safari`                                 |
+| `copilotInputSelector` | `"textarea, div[contenteditable='true']"` | CSS selector for the M365 Copilot chat input field                                                           |
 
 ---
 
@@ -229,7 +238,7 @@ npm run compile
 # Watch mode
 npm run watch
 
-# Run all tests (78 tests — unit + integration)
+# Run all tests (91 tests — unit + integration)
 npm test
 
 # Package VSIX
@@ -264,6 +273,7 @@ codeplanner/
 │   ├── agentRequestBuilder.ts # Drop-to-insert + agent request commands
 │   ├── commands.ts            # OCR command implementations
 │   ├── copilotBridge.ts       # M365 Copilot Upload Files panel + Finder staging
+│   ├── browserAutomation.ts   # Auto-Attach via AppleScript + JS injection (macOS)
 │   └── outputPanel.ts         # Editor output helpers
 ├── cli/
 │   └── codeplanner.js          # Standalone OCR CLI (no VS Code dependency)
@@ -292,6 +302,7 @@ Track development progress and session notes in the [`status/`](./status/) folde
 | [project_status_03.md](./status/project_status_03.md) | Session 03 — renamed codevision → codeplanner; M365 Copilot Upload Bridge                |
 | [project_status_04.md](./status/project_status_04.md) | Session 04 — Upload Files UX fixes; Agent Request template update                        |
 | [project_status_05.md](./status/project_status_05.md) | Session 05 — Windows screenshot fix; unit & integration test suite                       |
+| [project_status_06.md](./status/project_status_06.md) | Session 06 — Auto-Attach files to M365 Copilot via browser automation (macOS)            |
 
 ---
 

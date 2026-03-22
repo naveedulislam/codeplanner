@@ -29,6 +29,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as cp from 'child_process';
 import * as os from 'os';
+import { autoAttachFiles } from './browserAutomation';
 
 // ---------------------------------------------------------------------------
 // OS clipboard — copy a file as a native file object (not text)
@@ -328,6 +329,11 @@ export class CopilotFilesProvider
 
   // ── Public API ─────────────────────────────────────────────────────────────
 
+  /** Return a copy of the currently staged file paths. */
+  getStagedFiles(): string[] {
+    return [...this._files];
+  }
+
   /** Add a file to the staged list (called from the context-menu command). */
   addFile(filePath: string): void {
     this._addFile(filePath);
@@ -359,6 +365,56 @@ export class CopilotFilesProvider
    */
   async copyAllAndNotify(): Promise<void> {
     return this._copyAllAndNotify();
+  }
+
+  /**
+   * Auto-attach all staged files to M365 Copilot via browser automation.
+   * Requires an external browser (Chrome, Edge, Safari) with M365 Copilot open.
+   * Falls back to the manual Finder flow if automation fails.
+   */
+  async autoAttachToCopilot(): Promise<void> {
+    if (os.platform() !== 'darwin') {
+      vscode.window.showWarningMessage(
+        'CodePlanner: Auto-Attach is only available on macOS.',
+      );
+      return;
+    }
+    if (this._files.length === 0) {
+      vscode.window.showInformationMessage(
+        'CodePlanner: No files staged — drag files onto the Upload Files panel first.',
+      );
+      return;
+    }
+
+    const result = await vscode.window.withProgress(
+      {
+        location: vscode.ProgressLocation.Notification,
+        title: 'CodePlanner: Auto-attaching files to M365 Copilot…',
+        cancellable: false,
+      },
+      async (progress) => {
+        progress.report({ message: `0 / ${this._files.length} files` });
+        const res = await autoAttachFiles(this._files);
+        progress.report({ message: `${res.filesAttached} / ${this._files.length} files` });
+        return res;
+      },
+    );
+
+    if (result.success) {
+      const msg = result.filesAttached === this._files.length
+        ? `All ${result.filesAttached} files attached to M365 Copilot.`
+        : `${result.filesAttached} of ${this._files.length} files attached.`;
+      vscode.window.showInformationMessage(`CodePlanner: ${msg}`);
+    } else {
+      const errMsg = result.errors.join(' ');
+      const action = await vscode.window.showErrorMessage(
+        `CodePlanner: Auto-Attach failed — ${errMsg}`,
+        'Use Finder Instead',
+      );
+      if (action === 'Use Finder Instead') {
+        await this.copyAllAndNotify();
+      }
+    }
   }
 
   /**

@@ -114,6 +114,11 @@ export function activate(context: vscode.ExtensionContext): void {
             'https://m365.cloud.microsoft/chat/',
           ),
         ),
+
+        // Cloud-upload icon — auto-attach staged files via browser automation.
+        vscode.commands.registerCommand('codeplanner.autoAttachToCopilot', () =>
+          provider.autoAttachToCopilot(),
+        ),
       ];
 
       return cmds;

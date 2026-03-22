@@ -265,6 +265,14 @@ export const window = {
     dispose: jest.fn(),
     title: '',
   }),
+  createOutputChannel: jest.fn().mockReturnValue({
+    appendLine: jest.fn(),
+    append: jest.fn(),
+    clear: jest.fn(),
+    show: jest.fn(),
+    hide: jest.fn(),
+    dispose: jest.fn(),
+  }),
   withProgress: jest.fn().mockImplementation((_opts: unknown, task: (progress: unknown) => Promise<unknown>) => {
     const progress = { report: jest.fn() };
     return task(progress);

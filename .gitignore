@@ -7,3 +7,4 @@ out/
 *.traineddata
 debug_tsv.js
 .webcure
+plan/

@@ -88,6 +88,12 @@
         "title": "Copy All to Clipboard",
         "category": "CodePlanner",
         "icon": "$(copy)"
+      },
+      {
+        "command": "codeplanner.autoAttachToCopilot",
+        "title": "Auto-Attach to M365 Copilot",
+        "category": "CodePlanner",
+        "icon": "$(cloud-upload)"
       }
     ],
     "keybindings": [
@@ -121,6 +127,11 @@
         }
       ],
       "view/title": [
+        {
+          "command": "codeplanner.autoAttachToCopilot",
+          "when": "view == codeplanner.copilotFiles && isMac",
+          "group": "navigation@0"
+        },
         {
           "command": "codeplanner.copilotCopyAllFiles",
           "when": "view == codeplanner.copilotFiles",
@@ -162,6 +173,17 @@
           "type": "boolean",
           "default": true,
           "description": "Automatically open OCR/wireframe results in a new editor tab."
+        },
+        "codeplanner.copilotBrowser": {
+          "type": "string",
+          "enum": ["auto", "Google Chrome", "Microsoft Edge", "Safari"],
+          "default": "auto",
+          "description": "Browser where M365 Copilot Chat is open. 'auto' detects which browser has it open."
+        },
+        "codeplanner.copilotInputSelector": {
+          "type": "string",
+          "default": "textarea, div[contenteditable='true']",
+          "description": "CSS selector for the M365 Copilot chat input field."
         }
       }
     }
