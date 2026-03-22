@@ -90,11 +90,6 @@
     ],
     "keybindings": [
       {
-        "command": "codeplanner.captureScreenshot",
-        "key": "ctrl+shift+alt+4",
-        "mac": "ctrl+shift+cmd+4"
-      },
-      {
         "command": "codeplanner.sendToM365Copilot",
         "key": "ctrl+shift+alt+u",
         "mac": "ctrl+shift+cmd+u"

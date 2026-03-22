@@ -172,6 +172,75 @@ function saveClipboardImageToFile(destPath: string): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
+// Helper: Windows – trigger Win+Shift+S and poll clipboard for the image
+// ---------------------------------------------------------------------------
+
+function captureWindowsScreenshot(
+  destPath: string,
+  token: vscode.CancellationToken
+): Promise<boolean> {
+  const escapedPath = destPath.replace(/'/g, "''");
+  const ps = `
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+public class KeySender {
+    [DllImport("user32.dll")]
+    public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
+}
+"@
+
+# Clear clipboard so we can detect the new image
+[System.Windows.Forms.Clipboard]::Clear()
+Start-Sleep -Milliseconds 300
+
+# Send Win+Shift+S
+[KeySender]::keybd_event(0x5B, 0, 0, [UIntPtr]::Zero)   # Win down
+[KeySender]::keybd_event(0x10, 0, 0, [UIntPtr]::Zero)   # Shift down
+[KeySender]::keybd_event(0x53, 0, 0, [UIntPtr]::Zero)   # S down
+[KeySender]::keybd_event(0x53, 0, 2, [UIntPtr]::Zero)   # S up
+[KeySender]::keybd_event(0x10, 0, 2, [UIntPtr]::Zero)   # Shift up
+[KeySender]::keybd_event(0x5B, 0, 2, [UIntPtr]::Zero)   # Win up
+
+# Poll clipboard for up to 60 seconds
+$timeout = 60
+$start = Get-Date
+while (((Get-Date) - $start).TotalSeconds -lt $timeout) {
+    Start-Sleep -Milliseconds 500
+    $img = [System.Windows.Forms.Clipboard]::GetImage()
+    if ($img -ne $null) {
+        $img.Save('${escapedPath}', [System.Drawing.Imaging.ImageFormat]::Png)
+        Write-Output 'OK'
+        exit 0
+    }
+}
+exit 1
+`;
+
+  const scriptPath = path.join(os.tmpdir(), `codeplanner-snip-${Date.now()}.ps1`);
+  fs.writeFileSync(scriptPath, ps, 'utf8');
+
+  return new Promise<boolean>((resolve) => {
+    const proc = cp.execFile(
+      'powershell',
+      ['-STA', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', scriptPath],
+      { timeout: 70000 },
+      (err, stdout) => {
+        try { fs.unlinkSync(scriptPath); } catch { /* ignore */ }
+        resolve(!err && stdout.trim().includes('OK'));
+      }
+    );
+
+    token.onCancellationRequested(() => {
+      proc.kill();
+      try { fs.unlinkSync(scriptPath); } catch { /* ignore */ }
+      resolve(false);
+    });
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Command: captureScreenshot
 // ---------------------------------------------------------------------------
 
@@ -187,21 +256,15 @@ export async function cmdCaptureScreenshot(context: vscode.ExtensionContext): Pr
       });
     });
   } else if (process.platform === 'win32') {
-    // Launch the Windows Snipping Tool (ms-screensketch) then prompt to pick the saved file
-    cp.exec('start ms-screensketch:');
-    vscode.window.showInformationMessage(
-      'Take your screenshot with the Snipping Tool, save the file, then click "Pick File".',
-      'Pick File'
-    ).then(async (action) => {
-      if (action === 'Pick File') {
-        const uris = await vscode.window.showOpenDialog({
-          canSelectMany: false, canSelectFiles: true, canSelectFolders: false,
-          filters: { Images: ['png', 'jpg', 'jpeg'] }, openLabel: 'Select Screenshot'
-        });
-        if (uris?.[0]) { await runCaptureAction(context, uris[0].fsPath); }
+    // Trigger Win+Shift+S, poll clipboard for the screenshot, save to tmpFile
+    const captured = await vscode.window.withProgress(
+      { location: vscode.ProgressLocation.Notification, cancellable: true, title: 'CodePlanner' },
+      (progress, token) => {
+        progress.report({ message: 'Waiting for screenshot \u2014 select an area, then OCR runs automatically.' });
+        return captureWindowsScreenshot(tmpFile, token);
       }
-    });
-    return;
+    );
+    if (!captured) { return; }
   } else {
     // Linux: try gnome-screenshot -a then scrot -s
     const captured = await new Promise<boolean>((resolve) => {
